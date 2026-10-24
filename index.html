@@ -390,6 +390,7 @@ const DATA = {
     watch: { th: "ดูคลิปบน TikTok ↗", en: "Watch on TikTok ↗", zh: "在 TikTok 观看 ↗" },
     slides: { th: "ดูภาพสไลด์บน TikTok ↗", en: "View slideshow on TikTok ↗", zh: "在 TikTok 查看图集 ↗" },
     play: { th: "▶ เล่นคลิป", en: "▶ Play", zh: "▶ 播放" },
+    playSlides: { th: "▶ ดูภาพสไลด์", en: "▶ View slides", zh: "▶ 查看图集" },
     ext: { th: "เปิดใน TikTok ↗", en: "Open in TikTok ↗", zh: "在 TikTok 打开 ↗" },
     openCh: { th: "ดูในช่อง @lifp_thailand ↗", en: "Find it on @lifp_thailand ↗", zh: "在 @lifp_thailand 查看 ↗" },
     hReels: { th: "งานตัดต่อเพิ่มเติม", en: "More editing work", zh: "更多剪辑作品" },
@@ -650,7 +651,7 @@ const locale = () => ({ th: "th-TH", en: "en-GB", zh: "zh-CN" }[lang]);
 /* Embedded players only work when the page is the top-level site (GitHub Pages etc.), not inside a sandboxed frame */
 const CAN_EMBED = (() => { try { return window.self === window.top; } catch (e) { return false; } })();
 const resolvedIds = {};
-const videoId = (url) => ((url || "").match(/\/video\/(\d+)/) || [])[1] || resolvedIds[url] || null;
+const videoId = (url) => ((url || "").match(/\/(?:video|photo)\/(\d+)/) || [])[1] || resolvedIds[url] || null;
 
 /* Short links (vt.tiktok.com) carry no video ID: ask TikTok's oEmbed endpoint for it, remember the answer, and fall back to the plain link if it fails */
 async function resolveShortLinks() {
@@ -790,7 +791,7 @@ function renderClips() {
         ${rank >= 0 ? `<span class="rank">TOP ${rank + 1}</span>` : ""}
         ${vid ? `<span class="play" aria-hidden="true">▶</span>` : ""}`;
     const actions = vid
-      ? `<button type="button" class="clip-link" data-play="${vid}">${esc(ui("play"))}</button><a class="clip-ext" href="${esc(href)}" target="_blank" rel="noopener">${esc(ui("ext"))}</a>`
+      ? `<button type="button" class="clip-link" data-play="${vid}">${esc(ui(c.link.includes("/photo/") ? "playSlides" : "play"))}</button><a class="clip-ext" href="${esc(href)}" target="_blank" rel="noopener">${esc(ui("ext"))}</a>`
       : `<a class="clip-link" href="${esc(href)}" target="_blank" rel="noopener">${esc(!c.link ? ui("openCh") : c.link.includes("/photo/") ? ui("slides") : ui("watch"))}</a>`;
     return `
     <article class="clip">
