@@ -3,6 +3,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Pawitta Donklai Portfolio</title>
+<script>try { const t = localStorage.getItem("pd-theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}</script>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -71,9 +72,11 @@ button, select { font: inherit; color: inherit; }
 .nav { display: flex; gap: 4px 18px; flex-wrap: wrap; flex: 1; font-size: var(--step--1); color: var(--ink-2); }
 .nav a { text-decoration: none; }
 .nav a:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 4px; }
-.lang { display: inline-flex; border: 1px solid var(--cocoa); border-radius: 999px; overflow: hidden; flex: none; }
-.lang button { background: none; border: 0; padding: 4px 12px; font-size: var(--step--1); cursor: pointer; }
-.lang button[aria-pressed="true"] { background: var(--cocoa); color: var(--paper); }
+.lang, .theme { display: inline-flex; border: 1px solid var(--cocoa); border-radius: 999px; overflow: hidden; flex: none; }
+.lang button, .theme button { background: none; border: 0; padding: 4px 12px; font-size: var(--step--1); cursor: pointer; }
+.lang button[aria-pressed="true"], .theme button[aria-pressed="true"] { background: var(--cocoa); color: var(--paper); }
+.theme button { padding: 4px 9px; line-height: 1.2; }
+@media (max-width: 420px) { .bar .wrap { gap: 8px; } .lang button { padding: 4px 9px; } .theme button { padding: 4px 7px; } }
 @media (max-width: 760px) { .nav { display: none; } .mark { flex: 1; } }
 
 /* Section tag, from the Canva "Project เป้าหมาย" boxes */
@@ -260,6 +263,11 @@ dialog.lb img { display: block; max-width: 100%; max-height: 84vh; border-radius
       <button type="button" data-l="en">EN</button>
       <button type="button" data-l="zh">中文</button>
     </div>
+    <div class="theme" role="group" id="theme">
+      <button type="button" data-theme-set="light"><span aria-hidden="true">☀</span></button>
+      <button type="button" data-theme-set="dark"><span aria-hidden="true">☾</span></button>
+      <button type="button" data-theme-set="auto">Auto</button>
+    </div>
   </div>
 </header>
 
@@ -413,7 +421,10 @@ const DATA = {
     kPhone: { th: "โทร", en: "Phone", zh: "电话" },
     kEmail: { th: "อีเมล", en: "Email", zh: "邮箱" },
     kLinked: { th: "LinkedIn", en: "LinkedIn", zh: "LinkedIn" },
-    kTiktok: { th: "TikTok", en: "TikTok", zh: "TikTok" },
+    themeGroup: { th: "ธีม", en: "Theme", zh: "主题" },
+    themeLight: { th: "ธีมสว่าง", en: "Light theme", zh: "浅色" },
+    themeDark: { th: "ธีมมืด", en: "Dark theme", zh: "深色" },
+    themeAuto: { th: "ตามระบบ", en: "Match system", zh: "跟随系统" },
     copy: { th: "คัดลอก", en: "Copy", zh: "复制" },
     copied: { th: "คัดลอกแล้ว", en: "Copied", zh: "已复制" },
     close: { th: "ปิด", en: "Close", zh: "关闭" },
@@ -712,8 +723,12 @@ function renderStatic() {
   $("#nav").innerHTML = ui("nav").map((label, i) => `<a href="#${ids[i]}">${esc(label)}</a>`).join("");
   $("#creds").innerHTML = DATA.creds.map((c) => `<span class="chip">${esc(t(c))}</span>`).join("");
   $("#contact-hero").innerHTML = contactRows();
-  $("#contact-foot").innerHTML = contactRows() +
-    `<div class="contact-row"><span class="k">${esc(ui("kTiktok"))}</span><a class="v" href="${esc(DATA.contact.tiktok)}" target="_blank" rel="noopener">${esc(DATA.account.handle)} ↗</a></div>`;
+  $("#contact-foot").innerHTML = contactRows();
+  $("#theme").setAttribute("aria-label", ui("themeGroup"));
+  document.querySelectorAll("#theme button").forEach((b) => {
+    const label = ui({ light: "themeLight", dark: "themeDark", auto: "themeAuto" }[b.dataset.themeSet]);
+    b.setAttribute("aria-label", label); b.title = label;
+  });
   $("#figs").innerHTML = DATA.figures.map((f) =>
     `<div class="fig"><div class="n">${esc(f.n)}<small>${esc(t(f.u))}</small></div><div class="l">${esc(t(f.l))}</div></div>`).join("");
 
@@ -880,6 +895,7 @@ document.addEventListener("click", (e) => {
   const b = e.target.closest("button");
   if (!b) return;
   if (b.dataset.l) setLang(b.dataset.l);
+  else if (b.dataset.themeSet) setTheme(b.dataset.themeSet);
   else if (b.dataset.f) { filter = b.dataset.f; document.querySelectorAll("#filters button").forEach((x) => x.setAttribute("aria-pressed", String(x === b))); renderClips(); }
   else if (b.dataset.play) openPlayer("tiktok", `https://www.tiktok.com/player/v1/${b.dataset.play}?autoplay=1&rel=0`);
   else if (b.dataset.video) openPlayer("video", b.dataset.video, b.dataset.poster);
@@ -892,6 +908,14 @@ document.addEventListener("click", (e) => {
   }
 });
 $("#sort").addEventListener("change", (e) => { sortKey = e.target.value; renderClips(); });
+
+function setTheme(mode) {
+  if (mode === "light" || mode === "dark") document.documentElement.dataset.theme = mode;
+  else delete document.documentElement.dataset.theme;
+  document.querySelectorAll("#theme button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.themeSet === mode)));
+  try { mode === "auto" ? localStorage.removeItem("pd-theme") : localStorage.setItem("pd-theme", mode); } catch (e) {}
+}
+setTheme(document.documentElement.dataset.theme || "auto");
 
 let saved = null;
 try { saved = localStorage.getItem("pd-lang"); } catch (e) {}
