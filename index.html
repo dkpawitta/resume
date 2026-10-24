@@ -648,7 +648,33 @@ const fmt = (n) => n >= 1e6 ? (n / 1e6).toFixed(1).replace(/\.0$/, "") + "M" : n
 const locale = () => ({ th: "th-TH", en: "en-GB", zh: "zh-CN" }[lang]);
 /* Embedded players only work when the page is the top-level site (GitHub Pages etc.), not inside a sandboxed frame */
 const CAN_EMBED = (() => { try { return window.self === window.top; } catch (e) { return false; } })();
-const videoId = (url) => ((url || "").match(/\/video\/(\d+)/) || [])[1] || null;
+const resolvedIds = {};
+const videoId = (url) => ((url || "").match(/\/video\/(\d+)/) || [])[1] || resolvedIds[url] || null;
+
+/* Short links (vt.tiktok.com) carry no video ID: ask TikTok's oEmbed endpoint for it, remember the answer, and fall back to the plain link if it fails */
+async function resolveShortLinks() {
+  if (!CAN_EMBED) return;
+  let cache = {};
+  try { cache = JSON.parse(localStorage.getItem("pd-tk-ids") || "{}"); } catch (e) {}
+  const pending = DATA.clips.map((c) => c.link).filter((l) => l && !/\/video\/\d+/.test(l));
+  pending.forEach((l) => { if (/^\d+$/.test(cache[l] || "")) resolvedIds[l] = cache[l]; });
+  const todo = pending.filter((l) => !resolvedIds[l]);
+  if (todo.length) {
+    await Promise.allSettled(todo.map(async (l) => {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 8000);
+      try {
+        const res = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(l)}`, { signal: ctrl.signal });
+        if (!res.ok) return;
+        const j = await res.json();
+        const id = String(j.embed_product_id || (String(j.html || "").match(/data-video-id="(\d+)"/) || [])[1] || "");
+        if (/^\d+$/.test(id)) resolvedIds[l] = id;
+      } finally { clearTimeout(timer); }
+    }));
+    try { localStorage.setItem("pd-tk-ids", JSON.stringify(resolvedIds)); } catch (e) {}
+  }
+  if (Object.keys(resolvedIds).length) renderClips();
+}
 const fmtDate = (d) => new Intl.DateTimeFormat(locale(), { month: "short", year: "numeric" }).format(new Date(d + "T00:00:00"));
 
 function copyBtn(value) {
@@ -839,4 +865,5 @@ $("#sort").addEventListener("change", (e) => { sortKey = e.target.value; renderC
 let saved = null;
 try { saved = localStorage.getItem("pd-lang"); } catch (e) {}
 setLang(["th", "en", "zh"].includes(saved) ? saved : "th");
+resolveShortLinks();
 </script>
