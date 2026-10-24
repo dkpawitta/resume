@@ -168,7 +168,8 @@ button, select { font: inherit; color: inherit; }
 
 .reels-h { margin: 48px 0 16px; font-size: var(--step-1); font-weight: 800; }
 .reels { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
-.reels button { padding: 0; border: 0; background: var(--panel); border-radius: 10px; overflow: hidden; aspect-ratio: 9 / 16; cursor: zoom-in; }
+.reels button { position: relative; padding: 0; border: 0; background: var(--panel); border-radius: 10px; overflow: hidden; aspect-ratio: 9 / 16; cursor: zoom-in; }
+.reels button[data-video] { cursor: pointer; }
 .reels img { width: 100%; height: 100%; object-fit: cover; display: block; }
 @media (max-width: 860px) { .reels { grid-template-columns: repeat(4, 1fr); } }
 @media (max-width: 520px) { .reels { grid-template-columns: repeat(3, 1fr); gap: 8px; } }
@@ -234,9 +235,9 @@ button, select { font: inherit; color: inherit; }
 /* TikTok player (works when the page is hosted on its own, e.g. GitHub Pages) */
 dialog.player { border: 0; padding: 0; background: transparent; width: min(92vw, calc(84vh * 9 / 16)); }
 dialog.player::backdrop { background: rgb(10 8 6 / .86); }
-dialog.player iframe { display: block; width: 100%; aspect-ratio: 9 / 16; max-height: 84vh; border: 0; border-radius: 12px; background: #000; }
+dialog.player iframe, dialog.player video { display: block; width: 100%; aspect-ratio: 9 / 16; max-height: 84vh; border: 0; border-radius: 12px; background: #000; }
 button.clip-cover { padding: 0; border: 0; width: 100%; cursor: pointer; }
-.clip-cover .play { position: absolute; inset: 0; margin: auto; width: 52px; height: 52px; border-radius: 50%; background: rgb(0 0 0 / .55); color: #fff; display: grid; place-items: center; font-size: 1.25rem; padding-left: 4px; }
+.clip-cover .play, .reels .play { position: absolute; inset: 0; margin: auto; width: 52px; height: 52px; border-radius: 50%; background: rgb(0 0 0 / .55); color: #fff; display: grid; place-items: center; font-size: 1.25rem; padding-left: 4px; }
 .clip-actions { margin-top: auto; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
 .clip-actions button.clip-link { background: none; border: 0; padding: 0; cursor: pointer; }
 .clip-actions .clip-ext { font-size: .75rem; color: var(--ink-2); }
@@ -333,6 +334,7 @@ dialog.lb img { display: block; max-width: 100%; max-height: 84vh; border-radius
 
 <dialog class="player" id="player" aria-label="TikTok">
   <iframe id="player-frame" title="TikTok video" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen></iframe>
+  <video id="player-video" controls playsinline preload="none" hidden></video>
   <div class="lb-bar"><button type="button" id="player-x" data-t="close"></button></div>
 </dialog>
 
@@ -572,7 +574,12 @@ const DATA = {
       topic: { th: "แชร์ประสบการณ์ของน้อง ๆ ที่ไปเรียนจีนผ่านโครงการของบริษัท", en: "Students who went to China through the company's program share their experiences", zh: "通过公司项目赴华的学生分享亲身经历" },
       target: { th: "คนทั่วไป อายุ 16 ปีขึ้นไป", en: "General audience, 16+", zh: "大众，16 岁以上" } }
   ],
-  reels: ["edit-01", "edit-02", "edit-03", "edit-04", "edit-05", "edit-06", "edit-07", "edit-08", "edit-09", "edit-10", "edit-11", "edit-12"],
+  /* งานตัดต่อ: img = รูปปกใน img/, video = ไฟล์คลิป MP4 ใน video/ (ไม่มี video = กดแล้วดูรูปขยาย) */
+  reels: [
+    { img: "edit-01", video: "video/edit-01.mp4" },
+    { img: "edit-02" }, { img: "edit-03" }, { img: "edit-04" }, { img: "edit-05" }, { img: "edit-06" },
+    { img: "edit-07" }, { img: "edit-08" }, { img: "edit-09" }, { img: "edit-10" }, { img: "edit-11" }, { img: "edit-12" }
+  ],
   jobs: [
     { when: { th: "พ.ค. 2567 – ปัจจุบัน", en: "May 2024 – Present", zh: "2024 年 5 月至今" },
       co: { th: "LIFP Technology (Thailand) Co., Ltd.", en: "LIFP Technology (Thailand) Co., Ltd.", zh: "LIFP Technology (Thailand) Co., Ltd." },
@@ -718,8 +725,9 @@ function renderStatic() {
   $("#sort").innerHTML = [["views", "sViews"], ["new", "sNew"], ["full", "sFull"]].map(([v, k]) =>
     `<option value="${v}"${v === sortKey ? " selected" : ""}>${esc(ui(k))}</option>`).join("");
 
-  $("#reels").innerHTML = DATA.reels.map((r, i) =>
-    `<button type="button" data-lb="reels" data-i="${i}" aria-label="${esc(ui("hReels"))} ${i + 1}"><img src="${img(r)}" alt="" loading="lazy" width="400" height="711"></button>`).join("");
+  $("#reels").innerHTML = DATA.reels.map((r, i) => r.video
+    ? `<button type="button" data-video="${esc(r.video)}" data-poster="${img(r.img)}" aria-label="${esc(ui("play"))}: ${esc(ui("hReels"))} ${i + 1}"><img src="${img(r.img)}" alt="" loading="lazy" width="400" height="711"><span class="play" aria-hidden="true">▶</span></button>`
+    : `<button type="button" data-lb="reels" data-i="${i}" aria-label="${esc(ui("hReels"))} ${i + 1}"><img src="${img(r.img)}" alt="" loading="lazy" width="400" height="711"></button>`).join("");
 
   $("#jobs").innerHTML = DATA.jobs.map((j) => `
     <article class="job">
@@ -829,7 +837,7 @@ function setLang(l) {
 /* Lightbox */
 let lbList = [], lbIdx = 0;
 function photoList(key) {
-  if (key === "reels") return DATA.reels;
+  if (key === "reels") return DATA.reels.map((r) => r.img);
   const m = key.match(/^e(\d+)(?:c(\d+))?$/);
   const ev = DATA.events[+m[1]];
   return m[2] !== undefined ? ev.clients[+m[2]].photos : ev.photos;
@@ -841,7 +849,18 @@ $("#lb-next").addEventListener("click", () => { lbIdx = (lbIdx + 1) % lbList.len
 $("#lb-x").addEventListener("click", () => $("#lb").close());
 $("#player-x").addEventListener("click", () => $("#player").close());
 $("#player").addEventListener("click", (e) => { if (e.target.id === "player") $("#player").close(); });
-$("#player").addEventListener("close", () => { $("#player-frame").removeAttribute("src"); });
+$("#player").addEventListener("close", () => {
+  $("#player-frame").removeAttribute("src");
+  const v = $("#player-video"); v.pause(); v.removeAttribute("src"); v.load();
+});
+function openPlayer(kind, src, poster) {
+  const frame = $("#player-frame"), v = $("#player-video");
+  frame.hidden = kind !== "tiktok"; v.hidden = kind !== "video";
+  if (kind === "tiktok") frame.src = src;
+  else { v.poster = poster || ""; v.src = src; }
+  $("#player").showModal();
+  if (kind === "video") v.play().catch(() => {});
+}
 $("#lb").addEventListener("click", (e) => { if (e.target.id === "lb") $("#lb").close(); });
 $("#lb").addEventListener("keydown", (e) => {
   if (e.key === "ArrowRight") $("#lb-next").click();
@@ -853,7 +872,8 @@ document.addEventListener("click", (e) => {
   if (!b) return;
   if (b.dataset.l) setLang(b.dataset.l);
   else if (b.dataset.f) { filter = b.dataset.f; document.querySelectorAll("#filters button").forEach((x) => x.setAttribute("aria-pressed", String(x === b))); renderClips(); }
-  else if (b.dataset.play) { $("#player-frame").src = `https://www.tiktok.com/player/v1/${b.dataset.play}?autoplay=1&rel=0`; $("#player").showModal(); }
+  else if (b.dataset.play) openPlayer("tiktok", `https://www.tiktok.com/player/v1/${b.dataset.play}?autoplay=1&rel=0`);
+  else if (b.dataset.video) openPlayer("video", b.dataset.video, b.dataset.poster);
   else if (b.dataset.lb) openLb(b.dataset.lb, +b.dataset.i);
   else if (b.dataset.more) { const k = b.dataset.more; openGalleries.has(k) ? openGalleries.delete(k) : openGalleries.add(k); renderEvents(); }
   else if (b.dataset.copy !== undefined) {
