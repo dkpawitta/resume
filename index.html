@@ -66,9 +66,11 @@ button, select { font: inherit; color: inherit; }
 .wrap { max-width: var(--wrap); margin-inline: auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 
 /* Top bar */
-.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: color-mix(in srgb, var(--paper) 92%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; border-bottom: 1px solid var(--line); }
+.bar::before { content: ""; position: absolute; inset: 0; z-index: -1; background: color-mix(in srgb, var(--paper) 92%, transparent); backdrop-filter: blur(8px); }
 .bar .wrap { display: flex; align-items: center; gap: 16px; min-height: 56px; }
 .mark { font-weight: 800; letter-spacing: .02em; text-decoration: none; white-space: nowrap; }
+.drawer { display: flex; align-items: center; gap: 16px; flex: 1; min-width: 0; }
 .nav { display: flex; gap: 4px 18px; flex-wrap: wrap; flex: 1; font-size: var(--step--1); color: var(--ink-2); }
 .nav a { text-decoration: none; }
 .nav a:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 4px; }
@@ -76,8 +78,29 @@ button, select { font: inherit; color: inherit; }
 .lang button, .theme button { background: none; border: 0; padding: 4px 12px; font-size: var(--step--1); cursor: pointer; }
 .lang button[aria-pressed="true"], .theme button[aria-pressed="true"] { background: var(--cocoa); color: var(--paper); }
 .theme button { padding: 4px 9px; line-height: 1.2; }
+.hamburger { display: none; flex: none; align-items: center; justify-content: center; width: 38px; height: 38px; border: 1px solid var(--cocoa); border-radius: 10px; background: none; cursor: pointer; font-size: 1.1rem; }
+.drawer-overlay { display: none; }
 @media (max-width: 420px) { .bar .wrap { gap: 8px; } .lang button { padding: 4px 9px; } .theme button { padding: 4px 7px; } }
-@media (max-width: 760px) { .nav { display: none; } .mark { flex: 1; } }
+@media (max-width: 760px) {
+  .mark { flex: 1; }
+  .hamburger { display: inline-flex; }
+  .drawer {
+    position: fixed; top: 0; right: 0; bottom: 0; width: min(80vw, 300px);
+    flex-direction: column; align-items: stretch; gap: 24px; flex: none;
+    background: var(--card); border-left: 1px solid var(--line);
+    padding: calc(56px + env(safe-area-inset-top, 0px) + 24px) 20px 24px;
+    transform: translateX(100%); transition: transform .25s ease;
+    overflow-y: auto; z-index: 30; box-shadow: -12px 0 28px rgba(0, 0, 0, .18);
+  }
+  .drawer.open { transform: translateX(0); }
+  .nav { flex-direction: column; gap: 16px; font-size: var(--step-0); }
+  .lang, .theme { flex: none; align-self: flex-start; }
+  .drawer-overlay {
+    position: fixed; inset: 0; background: rgba(0, 0, 0, .4);
+    opacity: 0; pointer-events: none; transition: opacity .25s ease; z-index: 29;
+  }
+  .drawer-overlay.open { display: block; opacity: 1; pointer-events: auto; }
+}
 
 /* Section tag, from the Canva "Project เป้าหมาย" boxes */
 .tag { display: inline-block; background: var(--butter); color: var(--butter-ink); border: 1.5px solid var(--cocoa); padding: 2px 14px; font-weight: 700; font-size: var(--step--1); letter-spacing: .04em; text-transform: uppercase; }
@@ -257,18 +280,24 @@ dialog.lb img { display: block; max-width: 100%; max-height: 84vh; border-radius
 <header class="bar">
   <div class="wrap">
     <a class="mark" href="#top">PAWITTA D.</a>
-    <nav class="nav" id="nav"></nav>
-    <div class="lang" role="group" aria-label="Language" id="lang">
-      <button type="button" data-l="th">TH</button>
-      <button type="button" data-l="en">EN</button>
-      <button type="button" data-l="zh">中文</button>
+    <div class="drawer" id="drawer">
+      <nav class="nav" id="nav"></nav>
+      <div class="lang" role="group" aria-label="Language" id="lang">
+        <button type="button" data-l="th">TH</button>
+        <button type="button" data-l="en">EN</button>
+        <button type="button" data-l="zh">中文</button>
+      </div>
+      <div class="theme" role="group" id="theme">
+        <button type="button" data-theme-set="light"><span aria-hidden="true">☀</span></button>
+        <button type="button" data-theme-set="dark"><span aria-hidden="true">☾</span></button>
+        <button type="button" data-theme-set="auto">Auto</button>
+      </div>
     </div>
-    <div class="theme" role="group" id="theme">
-      <button type="button" data-theme-set="light"><span aria-hidden="true">☀</span></button>
-      <button type="button" data-theme-set="dark"><span aria-hidden="true">☾</span></button>
-      <button type="button" data-theme-set="auto">Auto</button>
-    </div>
+    <button type="button" class="hamburger" id="hamburger" aria-label="Menu" aria-expanded="false" aria-controls="drawer">
+      <span aria-hidden="true">☰</span>
+    </button>
   </div>
+  <div class="drawer-overlay" id="drawer-overlay" hidden></div>
 </header>
 
 <main id="top">
@@ -927,6 +956,18 @@ document.addEventListener("click", (e) => {
   }
 });
 $("#sort").addEventListener("change", (e) => { sortKey = e.target.value; renderClips(); });
+
+function setDrawer(open) {
+  $("#drawer").classList.toggle("open", open);
+  $("#drawer-overlay").classList.toggle("open", open);
+  $("#drawer-overlay").hidden = !open;
+  $("#hamburger").setAttribute("aria-expanded", String(open));
+}
+$("#hamburger").addEventListener("click", () => setDrawer(!$("#drawer").classList.contains("open")));
+$("#drawer-overlay").addEventListener("click", () => setDrawer(false));
+$("#drawer").addEventListener("click", (e) => { if (e.target.closest("#nav a")) setDrawer(false); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") setDrawer(false); });
+window.addEventListener("resize", () => { if (window.innerWidth > 760) setDrawer(false); });
 
 function setTheme(mode) {
   if (mode === "light" || mode === "dark") document.documentElement.dataset.theme = mode;
